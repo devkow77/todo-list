@@ -5,8 +5,9 @@ import Link from 'next/link';
 import * as yup from 'yup';
 import { useForm } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
-import { notifyError } from '@/helpers/notify';
 import { useRouter } from 'next/navigation';
+import { loginUser } from '../../helpers/request';
+import { notifyError } from '@/helpers/notify';
 
 const schema: yup.ObjectSchema<userInterface> = yup.object().shape({
 	email: yup.string().email('not valid email').required('email is required'),
@@ -33,24 +34,15 @@ const SignIn = () => {
 		formState: { errors, isSubmitted },
 	} = useForm<userInterface>({ resolver: yupResolver(schema) });
 
-	const loginUser = async () => {
-		try {
-			const response = await fetch('/api/auth/signin', {
-				method: 'POST',
-				headers: {
-					'Content-Type': 'application/json',
-				},
-				body: JSON.stringify({ ...user }),
-			});
-			const { token, message } = await response.json();
-			if (!response.ok) {
-				return notifyError(message);
-			}
-			localStorage.setItem('token', token);
-			router.push('/tasks');
-		} catch (error) {
-			console.log(error);
-		}
+	const onSubmit = () => {
+		loginUser(user)
+			.then((token) => {
+				if (token !== undefined && typeof window !== undefined) {
+					localStorage.setItem('token', token);
+					router.push('/tasks');
+				}
+			})
+			.catch((error) => console.log(error));
 	};
 
 	const getErrorMessages = () => {
@@ -65,7 +57,7 @@ const SignIn = () => {
 				<section>
 					<h1 className="text-4xl font-extrabold mb-8 md:text-5xl">SIGN IN</h1>
 					<div>
-						<form method="POST" onSubmit={handleSubmit(loginUser)}>
+						<form method="POST" onSubmit={handleSubmit(onSubmit)}>
 							<div className="flex flex-col items-center gap-4 mb-8">
 								<input
 									type="email"

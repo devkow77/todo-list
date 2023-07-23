@@ -1,11 +1,12 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
 import * as yup from 'yup';
 import { useForm } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 import { notifySuccess } from '@/helpers/notify';
+import Link from 'next/link';
+import { loadSingleTask, updateTask } from '@/helpers/request';
 
 const schema: yup.ObjectSchema<taskInterface> = yup.object().shape({
 	name: yup.string().required('task name is required'),
@@ -25,59 +26,35 @@ const taskInitialState: taskInterface = {
 const TaskEdit = ({ params }: { params: { id: string } }) => {
 	const [task, setTask] = useState<taskInterface>(taskInitialState);
 	const [isUpdated, setIsUpdated] = useState<boolean>(false);
+
 	const { id } = params;
-	const router = useRouter();
 	const {
 		register,
 		handleSubmit,
 		formState: { errors },
 	} = useForm({ resolver: yupResolver(schema) });
 
+	// load data to show on page
 	useEffect(() => {
-		getTask();
-	}, []);
-
-	const getTask = async () => {
-		try {
-			const response = await fetch(`/api/tasks/${id}`, {
-				method: 'GET',
-				headers: {
-					'Content-Type': 'application/json',
-				},
-			});
-			const { findTask } = await response.json();
-			if (!response.ok) {
-				console.log('Something went wrong with getting task');
-			}
+		loadSingleTask(id).then((response) => {
+			if (!response) return;
+			const { findTask } = response;
 			setTask({
 				name: findTask.name,
 				complited: findTask.complited,
 			});
-			console.log(findTask.complited);
-		} catch (error) {
-			console.log(error);
-		}
-	};
+		});
+	}, []);
 
-	const updateTask = async () => {
-		try {
-			const response = await fetch(`/api/tasks/${id}`, {
-				method: 'PATCH',
-				headers: {
-					'Content-Type': 'application/json',
-				},
-				body: JSON.stringify({ ...task }),
-			});
-			const { message } = await response.json();
-			if (!response.ok) {
-				console.log('Something went wrong with updating');
-			}
+	// update task function
+	const handleUpdateTask = () => {
+		updateTask(id, task).then((response) => {
+			if (!response) return;
+			const { message } = response;
 			notifySuccess(message);
 			setTask(taskInitialState);
 			setIsUpdated(true);
-		} catch (error) {
-			console.log(error);
-		}
+		});
 	};
 
 	return (
@@ -91,7 +68,7 @@ const TaskEdit = ({ params }: { params: { id: string } }) => {
 							Current task name: <span className="text-violet-300">{task.name}</span>
 						</p>
 					</div>
-					<form method="POST" className="space-y-8" onSubmit={handleSubmit(updateTask)}>
+					<form method="POST" className="space-y-8" onSubmit={handleSubmit(handleUpdateTask)}>
 						<div>
 							<input
 								type="text"
@@ -103,7 +80,7 @@ const TaskEdit = ({ params }: { params: { id: string } }) => {
 							/>
 							<label className="flex items-center justify-center gap-4">
 								<p>complited</p>
-								<input type="checkbox" {...register('complited')} value={String(task.complited)} onChange={(e) => setTask({ ...task, complited: e.target.checked })} />
+								<input type="checkbox" {...register('complited')} checked={task.complited ? true : false} onChange={(e) => setTask({ ...task, complited: e.target.checked })} />
 							</label>
 							<p className="text-sm max-w-xl md:text-base opacity-40 mx-auto mt-4">{errors.name?.message}</p>
 						</div>
@@ -111,9 +88,9 @@ const TaskEdit = ({ params }: { params: { id: string } }) => {
 							<button type="submit" className="w-full max-w-xl rounded-3xl text-center py-2 bg-violet-600 hover:bg-violet-800 duration-150">
 								save changes
 							</button>
-							<button className="w-full max-w-xl rounded-3xl text-center py-2 bg-violet-500 hover:bg-violet-700 duration-150" onClick={() => router.push('/tasks')}>
+							<Link href={'/tasks'} className="w-full max-w-xl rounded-3xl text-center py-2 bg-violet-500 hover:bg-violet-700 duration-150 block mx-auto">
 								{isUpdated ? 'back to task managment' : 'leave without saving'}
-							</button>
+							</Link>
 						</div>
 					</form>
 				</section>

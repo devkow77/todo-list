@@ -8,6 +8,8 @@ import { yupResolver } from '@hookform/resolvers/yup';
 import { notifyError, notifySuccess } from '@/helpers/notify';
 import { useRouter } from 'next/navigation';
 
+import { loadTasks, createTask, deleteTask } from '../../helpers/request';
+
 const schema = yup.object().shape({
 	name: yup.string().required('name of task is required'),
 	complited: yup.boolean().default(false).required(),
@@ -43,6 +45,7 @@ const Tasks = () => {
 	const [tasks, setTasks] = useState<tasksInterface[]>([tasksInitialState]);
 	const [task, setTask] = useState<tasksInterface>(tasksInitialState);
 	const [user, setUser] = useState<userInterface>(userInitialState);
+
 	const {
 		register,
 		handleSubmit,
@@ -50,83 +53,58 @@ const Tasks = () => {
 	} = useForm({ resolver: yupResolver(schema) });
 	const router = useRouter();
 
+	// fetching data to show on page
 	useEffect(() => {
-		getUserData();
+		const token = localStorage.getItem('token');
+		loadTasks(token)
+			.then((response) => {
+				if (!response) {
+					router.push('/');
+					return;
+				}
+				const {
+					findTasks,
+					decoded: { id, username, email },
+				} = response;
+				setTasks(findTasks);
+				setUser({
+					id,
+					username,
+					email,
+				});
+			})
+			.catch((error) => console.log(error));
 	}, []);
 
-	const getUserData = async () => {
-		try {
-			const token = localStorage.getItem('token');
-			if (!token) {
-				router.push('/');
-			}
-			const response = await fetch('/api/tasks', {
-				method: 'GET',
-				headers: {
-					'Content-Type': 'application/json',
-					Authorization: `Bearer ${token}`,
-				},
-			});
-			const { findTasks, decoded, message } = await response.json();
-			if (!response.ok) {
-				console.log(message);
-			}
-			setTasks(findTasks);
-			setUser({
-				id: decoded.id,
-				username: decoded.username,
-				email: decoded.email,
-			});
-		} catch (error) {
-			console.log(error);
-		}
+	// create task function
+	const handleCreateTask = () => {
+		const token = localStorage.getItem('token');
+		createTask(token, task, user)
+			.then((response) => {
+				if (!response) return;
+				const { findTasks, message } = response;
+				notifySuccess(message);
+				setTasks(findTasks);
+				setTask(tasksInitialState);
+			})
+			.catch((error) => console.log(error));
 	};
 
-	const createTask = async () => {
-		try {
-			const token = localStorage.getItem('token');
-			const response = await fetch('/api/tasks', {
-				method: 'POST',
-				headers: {
-					'Content-Type': 'application/json',
-					Authorization: `Bearer ${token}`,
-				},
-				body: JSON.stringify({ ...task, userId: user.id }),
-			});
-			const { findTasks, message } = await response.json();
-			if (!response.ok) {
-				return notifyError(message);
-			}
-			notifySuccess(message);
-			setTask(tasksInitialState);
-			setTasks(findTasks);
-		} catch (error) {
-			console.log(error);
-		}
+	// delete task function
+	const handleDeleteTask = (id: string) => {
+		const token = localStorage.getItem('token');
+		deleteTask(token, id)
+			.then((response) => {
+				if (!response) return;
+				const { findTasks, message } = response;
+				setTasks(findTasks);
+				notifySuccess(message);
+			})
+			.catch((error) => console.log(error));
 	};
 
-	const deleteTask = async (id: string) => {
-		try {
-			const token = localStorage.getItem('token');
-			const response = await fetch(`/api/tasks/${id}`, {
-				method: 'DELETE',
-				headers: {
-					'Content-Type': 'application/json',
-					Authorization: `Bearer ${token}`,
-				},
-			});
-			const { findTasks, message } = await response.json();
-			if (!response.ok) {
-				return notifyError(message);
-			}
-			notifySuccess(message);
-			setTasks(findTasks);
-		} catch (error) {
-			console.log(error);
-		}
-	};
-
-	const logoutUser = () => {
+	// logout user function
+	const handleLogoutUser = () => {
 		localStorage.removeItem('token');
 		router.push('/signin');
 	};
@@ -139,7 +117,7 @@ const Tasks = () => {
 						<h2 className="font-semibold">{user.username}</h2>
 						<h2 className="font-semibold">{user.email}</h2>
 					</div>
-					<button onClick={logoutUser} className="px-4 py-2 text-center rounded-3xl bg-violet-500 hover:bg-violet-700 duration-150 sm:px-12">
+					<button onClick={handleLogoutUser} className="px-4 py-2 text-center rounded-3xl bg-violet-500 hover:bg-violet-700 duration-150 sm:px-12">
 						<p>log out</p>
 					</button>
 				</nav>
@@ -149,7 +127,7 @@ const Tasks = () => {
 						<p>{tasks.length ? 'Create Your Next Task' : 'Create Your First Task'}</p>
 					</div>
 					<div className="mb-8">
-						<form method="POST" onSubmit={handleSubmit(createTask)} className="flex flex-col gap-8">
+						<form method="POST" onSubmit={handleSubmit(handleCreateTask)} className="flex flex-col gap-8">
 							<input
 								type="text"
 								placeholder="task name"
@@ -178,7 +156,7 @@ const Tasks = () => {
 										<p className={`${complited ? 'line-through' : ''}`}>{name}</p>
 										<div className="flex gap-2">
 											<MdEdit className="scale-125 cursor-pointer" onClick={() => router.push(`/tasks/${_id}`)} />
-											<MdDelete className="scale-125 cursor-pointer" onClick={() => deleteTask(_id || '')} />
+											<MdDelete className="scale-125 cursor-pointer" onClick={() => handleDeleteTask(_id || '')} />
 										</div>
 									</div>
 								))}

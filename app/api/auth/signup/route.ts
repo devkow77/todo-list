@@ -13,8 +13,8 @@ import User from '@/models/User';
 */
 
 export async function POST(req: Request) {
-	const body = await req.json();
 	await connectDB();
+	const body = await req.json();
 
 	const usernameExist = await User.findOne({ username: body.username });
 	if (usernameExist) {

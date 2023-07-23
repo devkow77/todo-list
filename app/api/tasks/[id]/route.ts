@@ -15,8 +15,8 @@ import checkAuthorization from '../../../../helpers/authorization';
 */
 
 export async function GET(req: Request, { params }: { params: { id: string } }) {
-	const { id } = params;
 	await connectDB();
+	const { id } = params;
 
 	const findTask = await Task.findOne({ _id: id });
 	return NextResponse.json({ findTask }, { status: StatusCodes.OK });
@@ -33,8 +33,8 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
 */
 
 export async function DELETE(req: Request, { params }: { params: { id: string } }) {
-	const { id } = params;
 	await connectDB();
+	const { id } = params;
 
 	const decoded = checkAuthorization(req);
 	if (!decoded) {
@@ -55,9 +55,9 @@ export async function DELETE(req: Request, { params }: { params: { id: string } 
 */
 
 export async function PATCH(req: Request, { params }: { params: { id: string } }) {
+	await connectDB();
 	const { id } = params;
 	const body = await req.json();
-	await connectDB();
 
 	await Task.findOneAndUpdate({ _id: id }, { name: body.name, complited: body.complited });
 	return NextResponse.json({ message: 'task has been updated' }, { status: StatusCodes.OK });

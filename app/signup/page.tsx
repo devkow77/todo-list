@@ -1,11 +1,12 @@
 'use client';
 
-import React, { useState } from 'react';
+import React from 'react';
 import Link from 'next/link';
 import * as yup from 'yup';
 import { useForm } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
-import { notifySuccess, notifyError } from '@/helpers/notify';
+import { createUser } from '@/helpers/request';
+import { useGlobalContext } from '../context/store';
 
 const schema: yup.ObjectSchema<userInterface> = yup.object().shape({
 	username: yup.string().min(8, 'at least 8 characters in username').max(20, 'max 20 characters in username').required('username is required'),
@@ -25,41 +26,27 @@ const userInitialState: userInterface = {
 	password: '',
 };
 
-const SignUp = () => {
-	const [user, setUser] = useState<userInterface>(userInitialState);
-	const [isUser, setIsUser] = useState<boolean>(false);
-
+const Page = () => {
+	const { user, setUser } = useGlobalContext();
 	const {
 		handleSubmit,
 		register,
-		formState: { errors, isSubmitted },
+		formState: { errors, isSubmitted, isSubmitSuccessful },
 	} = useForm<userInterface>({ resolver: yupResolver(schema) });
-
-	const createUser = async () => {
-		try {
-			const response = await fetch('/api/auth/signup', {
-				method: 'POST',
-				headers: {
-					'Content-Type': 'application/json',
-				},
-				body: JSON.stringify({ ...user }),
-			});
-			const { message } = await response.json();
-			if (!response.ok) {
-				return notifyError(message);
-			}
-			notifySuccess(message);
-			setIsUser(true);
-			setUser(userInitialState);
-		} catch (error) {
-			console.log(error);
-		}
-	};
 
 	const getErrorMessages = () => {
 		return Object.values(errors)
 			.map((error) => error?.message)
 			.join(' and ');
+	};
+
+	const handleSetUser = (target: string, value: string) => {
+		setUser({ ...user, [target]: value });
+	};
+
+	const onSubmit = () => {
+		createUser(user);
+		setUser(userInitialState);
 	};
 
 	return (
@@ -68,7 +55,7 @@ const SignUp = () => {
 				<section>
 					<h1 className="text-4xl font-extrabold mb-8 md:text-5xl">SIGN UP</h1>
 					<div>
-						<form method="POST" onSubmit={handleSubmit(createUser)}>
+						<form method="POST" onSubmit={handleSubmit(onSubmit)}>
 							<div className="flex flex-col items-center gap-4 mb-8">
 								<input
 									type="text"
@@ -76,7 +63,8 @@ const SignUp = () => {
 									className={`${isSubmitted ? (errors.username ? 'bg-red-500 bg-opacity-20' : 'bg-green-500 bg-opacity-20') : 'bg-black'} w-full max-w-xl bg-opacity-10 rounded-3xl text-center py-2`}
 									{...register('username')}
 									value={user.username}
-									onChange={(e) => setUser({ ...user, username: e.target.value })}
+									name="username"
+									onChange={(e) => handleSetUser(e.target.name, e.target.value)}
 								/>
 								<input
 									type="email"
@@ -84,7 +72,8 @@ const SignUp = () => {
 									className={`${isSubmitted ? (errors.email ? 'bg-red-500 bg-opacity-20' : 'bg-green-500 bg-opacity-20') : 'bg-black'} w-full max-w-xl bg-opacity-10 rounded-3xl text-center py-2`}
 									{...register('email')}
 									value={user.email}
-									onChange={(e) => setUser({ ...user, email: e.target.value })}
+									name="email"
+									onChange={(e) => handleSetUser(e.target.name, e.target.value)}
 								/>
 								<input
 									type="password"
@@ -92,7 +81,8 @@ const SignUp = () => {
 									className={`${isSubmitted ? (errors.password ? 'bg-red-500 bg-opacity-20' : 'bg-green-500 bg-opacity-20') : 'bg-black'} w-full max-w-xl bg-opacity-10 rounded-3xl text-center py-2`}
 									{...register('password')}
 									value={user.password}
-									onChange={(e) => setUser({ ...user, password: e.target.value })}
+									name="password"
+									onChange={(e) => handleSetUser(e.target.name, e.target.value)}
 								/>
 								<p className="text-sm max-w-xl md:text-base opacity-40">{getErrorMessages()}</p>
 							</div>
@@ -100,8 +90,8 @@ const SignUp = () => {
 								<button type="submit" className="w-full max-w-xl py-2 rounded-3xl bg-violet-600 hover:bg-violet-800 duration-150">
 									create user
 								</button>
-								<Link href={`${isUser ? '/signin' : '/'}`}>
-									<p>{isUser ? 'go to login' : 'back to menu'}</p>
+								<Link href={`${isSubmitSuccessful ? '/signin' : '/'}`}>
+									<p>{isSubmitSuccessful ? 'go to login' : 'back to menu'}</p>
 								</Link>
 							</div>
 						</form>
@@ -112,4 +102,4 @@ const SignUp = () => {
 	);
 };
 
-export default SignUp;
+export default Page;
